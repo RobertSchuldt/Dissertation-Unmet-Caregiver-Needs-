@@ -1,12 +1,13 @@
-libname mbsf "***";
-libname dis "****";
+libname mbsf "*********";
+libname dis "**********";
 /** Starting the process of compiling the dataset for the CMS caregiver project**/
 /** January 1 2018 Robert Schuldt**/
 
 data mbsf;
 	set mbsf.mbsf_abcd_summary;
+
 		if state_cnty_fips_cd_01 = state_cnty_fips_cd_01 then fips_check = 1;
-			else fips_check = 0;
+			else fips_cnty = 0;
 	run;
 
 proc freq data = mbsf;
@@ -17,12 +18,16 @@ run;
 
 data mbsf_fips;
 	set mbsf;
+	if STATE_CODE in ('54', '55','56', '57','58','59','60','61','62','63','97','98','99') then delete;
 
 	/*** There is no change amongst the Fips County Code from Jan to December for all patients, so we can just use this. Do not need
 	to merge in the SSA to FIPS crosswalk, because we already have it***/
+	fips = substr(STATE_CNTY_FIPS_CD_01, 1, 2);
+	if fips = 99 then delete;
+	fips_state = fipstate(fips);
 	fips_cnty = state_cnty_fips_cd_01;
 	** Age market **;
-
+	
 	if AGE_AT_END_REF_YR >= 65 then age_mark = 1;
 		else age_mark = 0;
 	 
@@ -81,33 +86,50 @@ data mbsf.mbsf_crit;
 	where age_mark = 1 and ffs ne 0;
 	part_ab_full = 1;
 	keep bene_id state_code county_cd zip_cd fips_cnty DUAL_ELGBL_MONS  BENE_HMO_CVRAGE_TOT_MONS age_mark age_at_end_ref_yr bene_death_dt SEX_IDENT_CD female rti_race_cd white 
-	black hispanic other_race dual part_dual ffs ab_month1 - ab_month12 MDCR_ENTLMT_BUYIN_IND_01 MDCR_ENTLMT_BUYIN_IND_12;
+	black hispanic other_race dual part_dual ffs ab_month1 - ab_month12 MDCR_ENTLMT_BUYIN_IND_01 MDCR_ENTLMT_BUYIN_IND_12 fips fips_state;
 		run;
-
+proc contents data = dis.oasis_vars position ;
+run;
 
 	
 
 /*** Now we bring in the OASIS data set which will be merged with the MBSF summary file**/
-data mbsf.oasis_vars;
+data oasis_vars;
 	set mbsf.combined_oasis;
 	where M0100_ASSMT_REASON = "01";
-	keep BENE_ID ASMT_ID ASMT_EFF_DATE M0016_BRANCH_ID M0100_ASSMT_REASON M0090_ASMT_CPLT_DT M0014_BRANCH_STATE M0010_MEDICARE_ID M0030_SOC_DT M0032_ROC_DT M0090_ASMT_CPLT_DT 
+	keep BENE_DEATH_DT bene_id count M2102_CARE_TYPE_SRC_ADL M2102_CARE_TYPE_SRC_IADL M2102_CARE_TYPE_SRC_MDCTN M2102_CARE_TYPE_SRC_PRCDR M2102_CARE_ASTNC_EQUIP_CD M2102_CARE_TYPE_SRC_SPRVSN M2102_CARE_TYPE_SRC_ADVCY
+    ASMT_ID ASMT_EFF_DATE M0016_BRANCH_ID M0100_ASSMT_REASON M0090_ASMT_CPLT_DT M0014_BRANCH_STATE M0010_MEDICARE_ID M0030_SOC_DT M0032_ROC_DT M0090_ASMT_CPLT_DT 
 	M0150_CPY_MCAIDFFS M0150_CPY_MCAIDHMO M0150_CPY_MCAREFFS M0150_CPY_MCAREHMO M0150_CPY_NONE M0150_CPY_OTH_GOVT M0150_CPY_OTHER M0150_CPY_PRIV_HMO M0150_CPY_PRIV_INS M0150_CPY_SELFPAY M0150_CPY_TITLEPGM
 	M0150_CPY_UK M0150_CPY_WRKCOMP M0110_EPSD_TIMING_CD M1000_DC_IPPS_14_DA M1000_DC_IRF_14_DA M1000_DC_LTC_14_DA M1000_DC_LTCH_14_DA M1000_DC_OTH_14_DA M1000_DC_PSYCH_14_DA M1000_DC_SNF_14_DA M1000_DC_NON_14_DA
 	M1020_PRI_DGN_ICD M1020_PRI_DGN_SEV M1022_OTH_DGN1_ICD M1022_OTH_DGN1_SEV M1022_OTH_DGN2_ICD M1022_OTH_DGN2_SEV M1022_OTH_DGN3_ICD M1022_OTH_DGN3_SEV M1022_OTH_DGN4_ICD M1022_OTH_DGN4_SEV M1022_OTH_DGN5_ICD M1022_OTH_DGN5_SEV
 	M1030_THH_ENT_NUTR M1030_THH_IV_INFUS M1030_THH_NONE_ABV M1030_THH_PAR_NUTR M1034_PTNT_OVRAL_STUS M1036_RSK_Alcohol M1036_RSK_drugs M1036_RSK_none M1036_RSK_obesity M1036_RSK_smoking M1036_RSK_uk M1100_PTNT_LVG_STUTN
 	M1242_PAIN_FREQ_ACTVTY_MVMT M1306_UNHLD_stg2_prsr_ulcr m1340_srgcl_wnd_prsnt m1350_lesion_open_wnd m1400_when_dyspnic m1410_resptx_airpr m1410_resptx_none m1410_resptx_oxygn m1410_resptx_vent M1600_uti 
 	m1615_incntnt_timing m1620_bwl_incont m1700_cog_function m1730_stdz_dprsn_scrng m1730_phq2_dprsn m1730_phq2_lack_intrst m1740_bd_delusions m1740_bd_imp_dcsn m1740_bd_mem_dfict m1740_bd_none m1740_bd_physical m1740_bd_soc_inapp
-	m1740_bd_verbal m1800_cu_grooming m1810_cu_dress_upr m1820_cu_dress_low m1830_crnt_bathg m1840_cur_toiltg m1845_cur_toiltg_hygn m1850_cur_trnsfrng m1860_crnt_ambltn m1870_cu_feeding m1910_mlt_fctr_fall_risk_asmt 
-	M2100_CARE_TYPE_SRC_EQUIP M2102_CARE_TYPE_SRC_ADL M2102_CARE_TYPE_SRC_ADVCY M2102_CARE_TYPE_SRC_SPRVSN M2100_CARE_TYPE_SRC_EQUIP m2102_care_type_src_prcdr m2102_care_type_src_mdctn m2110_adl_iadl_astnc_freq M2300_EMER_USE_AFTR_LAST_ASMT
-	m2200_thrpy_need_na_num m2200_thrpy_need_num m2410_inpat_fac m2420_dschrg_disp M2100_CARE_TYPE_SRC_IADL;
+	m1740_bd_verbal m1800_cu_grooming m1810_cu_dress_upr m1820_cu_dress_low m1830_crnt_bathg m1840_cur_toiltg m1845_cur_toiltg_hygn m1850_cur_trnsfrng m1860_crnt_ambltn m1870_cu_feeding m1910_mlt_fctr_fall_risk_asmt;
 
-	/** I believe that Branch_identifier and M0016_BRANCH_ID are same variable **/ 
+	count = 1;
+
+	run;
+proc sql;
+create table oasis_count as
+select *, 
+sum(count) as total_hhc_episodes
+from oasis_vars
+group by bene_id;
+quit;
+
+data dis.oasis_vars;
+	set oasis_count;
+where M0100_ASSMT_REASON = "01";
+	run;
+
+	proc freq;
+	table total_hhc_episodes;
 	run;
 
 /**Merge beneficiary from together keeping only those that are in the OASIS file. **/
 
-proc sort data = mbsf.oasis_vars;
+proc sort data = dis.oasis_vars;
 by bene_id;
 run;
 
@@ -116,7 +138,7 @@ by bene_id;
 run;
 
 data mbsf_oasis;
-	merge mbsf.mbsf_crit ( in = a) mbsf.oasis_vars (in = b);
+	merge mbsf.mbsf_crit ( in = a) dis.oasis_vars (in = b);
 	by bene_id;
 	if a;
 	if b;
@@ -124,28 +146,45 @@ data mbsf_oasis;
 
 /***
 	NOTE: There were 2687102 observations read from the data set WORK.MBSF_CRIT.
-	NOTE: There were 10205375 observations read from the data set WORK.OASIS.
-	NOTE: The data set WORK.MBSF_OASIS has 8619217 observations and 321 variables.
-	NOTE: DATA statement used (Total process time):
-      	real time           6:30.71
-      	cpu time            23.27 seconds
+	NOTE: There were  3372447 observations read from the data set WORK.OASIS.
+	 The data set WORK.MBSF_OASIS has 2933963 observations and 136 variables.
 
 ***/
+proc sort data = mbsf_oasis;
+by bene_id ASMT_EFF_DATE;
+run;
 
-data mbsf.mbsf_oasis;
-	set mbsf_oasis;
+proc sort data = mbsf_oasis nodupkey;
+by bene_id;
+run;
+
+proc sql;
+create table fips_pats as 
+select *,
+sum(count) as pat_per_fip
+from  mbsf_oasis
+group by fips_cnty;
+quit;
+
+proc sort data = fips_pats out = represent nodupkey;
+by fips_cnty;
+run;
+
+proc freq data = represent;
+table count;
+where pat_per_fip >=20;
+run;
+
+data dis.mbsf_oasis;
+	set fips_pats;
 	run;
 
 /*** Now to start working on the identfying variables for unmet caregiver needs**/
-
-
-
-
-data p4_var;
-	set mbsf.mbsf_oasis;
+data measures;
+	set dis.mbsf_oasis;
 		/** Array do loop to work through the variables all at once. Increase efficiency **/
-		array unor(7) m2102_care_type_src_iadl M2100_CARE_TYPE_SRC_EQUIP m2102_care_type_src_prcdr m2102_care_type_src_mdctn M2102_CARE_TYPE_SRC_ADL M2102_CARE_TYPE_SRC_ADVCY M2102_CARE_TYPE_SRC_SPRVSN;
-	array un(7) un_iadl un_equip un_prcdr un_mdctn un_adl un_advcy un_sprvsn;
+		array unor(7) M2102_CARE_TYPE_SRC_ADL M2102_CARE_TYPE_SRC_IADL M2102_CARE_TYPE_SRC_MDCTN M2102_CARE_TYPE_SRC_PRCDR M2102_CARE_ASTNC_EQUIP_CD M2102_CARE_TYPE_SRC_SPRVSN M2102_CARE_TYPE_SRC_ADVCY;
+	array un(7) un_adl un_iadl un_mdctn un_equip un_prcdr un_sprvsn un_advcy;
 		do index = 1 to 7;
 			if unor(index) = "02" | unor(index) = "03" | unor(index) = "04" | unor(index) = "05" then un(index) = 1;
 				else un(index) = 0;
@@ -154,47 +193,17 @@ data p4_var;
 			run;
 /*** check to make sure the array system worked correctly**/
 title 'Check Management Variables for Any Values';
-proc freq;
-table un_iadl un_equip un_prcdr un_mdctn un_adl un_advcy un_sprvsn;
+proc freq data = measures ;
+table un_adl un_iadl un_mdctn un_equip un_prcdr un_sprvsn un_advcy;
 run;
-
-title 'Check Management Variables for Any Values';
-proc freq;
-table m2102_care_type_src_iadl M2100_CARE_TYPE_SRC_EQUIP m2102_care_type_src_prcdr m2102_care_type_src_mdctn m2102_care_type_src_adl;
-run;
-
-/**
-There is no usable data in the variables listed aboce. Messaged Dr. Chen we will use M0100  to check for visit types
-
-**/
-
-data m0100;
-	set mbsf.mbsf_oasis;
-run;
-
-
+/* Insure I have only start of care assessments*/
 proc freq;
 title 'Check the M0100 variable values';
 table M0100_ASSMT_REASON;
 run;
-
-data m0100_code;
-	set m0100;
-		m0100_check = 0;
-		if M0100_ASSMT_REASON = "01" then m0100_check = 1;
-		if M0100_ASSMT_REASON = "03" then m0100_checl = 1;
-		if M0100_ASSMT_REASON = "04" then m0100_checl = 1;
-		run;	
-		
-proc freq;
-title 'Check to see if all m0100 were matched';
-table m2100_care_type_src_iadl*m0100_checl;
-run;
-
 /* start of page five of the sheet provided. Medical Conditions A*/
-
 data p5;
-	set m0100_code;
+	set measures;
 		if M1000_DC_IPPS_14_DA = "1" then psc_hosp = 1; 
 			else psc_hosp = 0;
 		if M1000_DC_NON_14_DA = "1" then community = 1;
@@ -215,8 +224,8 @@ table psc_other psc_hosp community;
 run;
 
 proc freq; 
-title "Checl what kind of data in Severity Diag";
-table M1022_OTH_DGN1_SEV;
+title "Check what kind of data in Severity Diag";
+table M1022_OTH_DGN1_SEV M1100_PTNT_LVG_STUTN;
 run;
 
 /* Diagnosis Severity variable*/
@@ -258,9 +267,9 @@ data p5_2;
 		if M1036_RSK_obesity =  '1' then risk = 1;
 		if M1036_RSK_smoking = '1' then risk = 1;
 		if M1036_RSK_uk = '1' then risk = .;
-
-		alone_0 = 0;
-		if M1100_PTNT_LVG_STUTN = "00" then alone_0 = 1;
+		
+		lives_with = 0;
+		if M1100_PTNT_LVG_STUTN = "06" or "07" or "08" or "09" or "10" then lives_with = 1; 
 
 		alone_ass = 0;
 		if M1100_PTNT_LVG_STUTN = "01" then alone_ass = 1;
@@ -365,36 +374,163 @@ data p7;
 		else fall_risk = 0;
 
 			run;
-/* Page 8 of the packet variables */
-
-
-data p8;
-	set p7;
-
-		if M2300_EMER_USE_AFTR_LAST_ASMT = "01" then er = 1;
-			else er = 0;
-		if M2300_EMER_USE_AFTR_LAST_ASMT = "UK" then er =.;
-
-		if m2410_inpat_fac = "01" then hosp = 1;
-			else hosp = 0;
-		if m2410_inpat_fac = "02" then rehab = 1;
-			else rehab = 0;
-		if m2410_inpat_fac = "03" then nh = 1;
-			else nh = 0;
-		if m2410_inpat_fac = "04" then inpt_hospice = 1;
-			else inpt_hospice = 0;
-
-		if m2410_inpat_fac = "NA" and m2420_dschrg_disp = "03" then home_hospice1 = 1;
-			else home_hospice1 = 0;
-		if m2420_dschrg_disp = "03" then home_hospice2 = 1;
-			else home_hospice2 = 0;
-
-			run;
-
+/* Completed building of the OASIS data set now I need to drop observations in december or from prior year*/
 data dis.mbsf_oasis_comp;
-	set p8;
+	set p7;
+	if M0030_SOC_DT lt '01JAN2015'd or M0030_SOC_DT gt '01DEC2015'd then delete;
 	run;
 
-	proc freq;
-	table m2102_care_type_src_iadl;
+/*Now it is time to bring in the MedPAR data set to get the information about */ 
+
+/* Identifying where patients went.  */
+
+libname pqi '********';
+
+%include '**********';
+
+
+data medpar;
+	set pqi.medpar_pqi;
+		drop PTC_PBP_ID_01-PTC_PBP_ID_12 PTC_PLAN_TYPE_CD_01-PTC_PLAN_TYPE_CD_12;
+run;
+
+/*I want to get only those hospitalizations that were within the time frame that we need for this study.
+As such I want to merge Bene ID and SOC date so I can clean up hospitalizations that do not matter from 
+the medpar data set*/
+
+data clean_medpar;
+	set dis.mbsf_oasis_comp;
+	keep bene_id M0030_SOC_DT;
+run;
+%sort(medpar, bene_id)
+%sort(clean_medpar, bene_id)
+data medpar_keep (compress = yes);
+ merge clean_medpar (in = a) medpar (in = b);
+ by bene_id;
+ if a;
+ if b;
+ run;
+
+data medpar_keep2;
+	set medpar_keep;
+		soc_plus = M0030_SOC_DT+60;
+		if ADMSN_DT ne . and (ADMSN_DT lt M0030_SOC_DT or ADMSN_DT gt soc_plus) then delete;
 	run;
+
+%sort(medpar_keep2, bene_id)
+%sort(dis.mbsf_oasis_comp, bene_id)
+/*Only merge one way because some patients never acrued inpatient chargers*/
+data medpar_oasis (compress = yes);
+ merge dis.mbsf_oasis_comp (in = a) medpar_keep2 (in = b);
+ by bene_id;
+ if a;
+ run;
+
+data dis.full_set;
+	set medpar_oasis;
+			%let prev = TAPQ01 TAPQ02 TAPQ03 TAPQ05 TAPQ07 TAPQ08 TAPQ10 TAPQ11 TAPQ12 TAPQ14 TAPQ15 TAPQ16;
+				array cond  &prev;
+					do over cond;
+						if cond = 1 then preventable_hosp = 1;
+					end;
+		
+			/*Identify whether the stay is a short or long stay or snf*/
+			
+			if SS_LS_SNF_IND_CD = "S" then hosp_stay = 1;
+				else hosp_stay = 0;
+			if SS_LS_SNF_IND_CD = "N" then snf_stay = 1;
+				else snf_stay = 0;
+
+			if SS_LS_SNF_IND_CD = "L"  then long_stay =1;
+				else long_stay = 0;
+
+			if SS_LS_SNF_IND_CD = "S" or SS_LS_SNF_IND_CD = "N" or SS_LS_SNF_IND_CD = "L" then any_hosp_stay = 1;
+				else any_stay = 0;
+			/* Time to identify the types of prevents*/
+
+			%let ph = preventable_hosp;
+
+			if (ADMSN_DT gt M0030_SOC_DT and ADMSN_DT lt soc_plus) and &ph = 1 then acsc_hha = 1;
+				else acsc_hha = 0;
+
+			if (ADMSN_DT ge M0030_SOC_DT and ADMSN_DT lt soc_plus) and nh_stay = 1 then snf_hha = 1;
+				else nh_hha = 0;
+
+			if (ADMSN_DT ge M0030_SOC_DT and ADMSN_DT lt soc_plus) and long_stay = 1 then long_hha = 1;
+				else long_hha = 0;
+
+
+			if BENE_DEATH_DT ne . and (BENE_DEATH_DT gt M0030_SOC_DT or BENE_DEATH_DT lt soc_plus) then death = 1;
+				else death = 0;
+	run;
+/*Check for duplicates of the beneficairies*/
+	PROC FREQ;
+ TABLES bene_id / noprint out=keylist;
+RUN;
+PROC PRINT;
+ WHERE count ge 2;
+RUN; 
+/* The following code will eliminate multiple hospitalizations in the Episode time frame keeping only the first admittance*/
+
+proc sort data = dis.full_set; 
+by bene_id ADMSN_DT;
+run;
+
+proc sort data = dis.full_set nodupkey;
+by bene_id;
+run;
+
+/* Can decide if we want to keep the above code or not*/
+
+proc freq;
+table hosp_stay snf_stay long_stay death;
+run;
+
+proc contents position;
+run;
+
+/*pull in the agency ID and the POS file to identify agency type*/
+libname pos '**********';
+
+data pos;
+	set pos.pos_2015 ;
+		where PRVDR_CTGRY_SBTYP_CD = "01";
+
+		keep GNRL_CNTL_TYPE_CD FIPS_STATE_CD FIPS_CNTY_CD BED_CNT  CRTFCTN_DT prvdr_num M0010_MEDICARE_ID ;
+		rename prvdr_num = M0010_MEDICARE_ID;
+					run;
+
+%sort(pos, M0010_MEDICARE_ID)
+%sort(dis.full_set, M0010_MEDICARE_ID)
+
+data agency_type;
+	merge dis.full_set (in = a) pos (in = b);
+	by M0010_MEDICARE_ID;
+	if a;
+	run;
+
+data agency_check;
+	set agency_type;
+	 if M0010_MEDICARE_ID = "000000" then delete;
+
+	if GNRL_CNTL_TYPE_CD = '01' or GNRL_CNTL_TYPE_CD = '02' or GNRL_CNTL_TYPE_CD = '03' then nfp = 2;
+		else nfp = 0;
+	if GNRL_CNTL_TYPE_CD = '04' then fp = 1;
+		else fp = 0;
+	if GNRL_CNTL_TYPE_CD = '05'  or GNRL_CNTL_TYPE_CD = '06' or GNRL_CNTL_TYPE_CD = '07' then gov = 3;
+		else gov = 0;
+	if GNRL_CNTL_TYPE_CD = '08' or GNRL_CNTL_TYPE_CD = '09' or GNRL_CNTL_TYPE_CD = '10' then other = 4;
+		else other = 0;
+
+	if GNRL_CNTL_TYPE_CD = ' ' then missing = 1;
+
+run;
+
+proc freq;
+table nfp fp gov other;
+run;
+/*I Have some medicare agencies that do not match up to the POS file. Do I want to eliminate these observations?*/
+proc freq;
+table M0010_MEDICARE_ID;
+where  missing=1;
+run;
